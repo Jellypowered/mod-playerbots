@@ -1014,26 +1014,47 @@ bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
     if (isLogginIn)
         return false;
 
+    //if (!player)
+    //{
+    //    AddPlayerBot(botGUID, 0);
+    //    SetEventValue(bot, "login", 1, sPlayerbotAIConfig->randomBotUpdateInterval);
+
+    //    uint32 randomTime =
+    //        urand(sPlayerbotAIConfig->minRandomBotReviveTime, sPlayerbotAIConfig->maxRandomBotReviveTime);
+    //    SetEventValue(bot, "update", 1, randomTime);
+
+    //    // do not randomize or teleport immediately after server start (prevent lagging)
+    //    if (!GetEventValue(bot, "randomize"))
+    //    {
+    //        randomTime = urand(sPlayerbotAIConfig->randomBotUpdateInterval * 5,
+    //                           sPlayerbotAIConfig->randomBotUpdateInterval * 20);
+    //        ScheduleRandomize(bot, randomTime);
+    //    }
+    //    if (!GetEventValue(bot, "teleport"))
+    //    {
+    //        randomTime = urand(sPlayerbotAIConfig->randomBotUpdateInterval * 5,
+    //                           sPlayerbotAIConfig->randomBotUpdateInterval * 20);
+    //        ScheduleTeleport(bot, randomTime);
+    //    }
+    //    return true;
+    //}
+
     if (!player)
     {
         AddPlayerBot(botGUID, 0);
-        SetEventValue(bot, "login", 1, sPlayerbotAIConfig->randomBotUpdateInterval);
+        SetEventValue(bot, "login", 1, 1);
 
-        uint32 randomTime =
-            urand(sPlayerbotAIConfig->minRandomBotReviveTime, sPlayerbotAIConfig->maxRandomBotReviveTime);
+        uint32 randomTime = urand(5, 15);
         SetEventValue(bot, "update", 1, randomTime);
 
         // do not randomize or teleport immediately after server start (prevent lagging)
         if (!GetEventValue(bot, "randomize"))
         {
-            randomTime = urand(sPlayerbotAIConfig->randomBotUpdateInterval * 5,
-                               sPlayerbotAIConfig->randomBotUpdateInterval * 20);
-            ScheduleRandomize(bot, randomTime);
+            ScheduleRandomize(bot, 3);
         }
         if (!GetEventValue(bot, "teleport"))
         {
-            randomTime = urand(sPlayerbotAIConfig->randomBotUpdateInterval * 5,
-                               sPlayerbotAIConfig->randomBotUpdateInterval * 20);
+            randomTime = urand(7, 12);
             ScheduleTeleport(bot, randomTime);
         }
         return true;
