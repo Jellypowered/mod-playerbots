@@ -1460,7 +1460,7 @@ AiPlayerbot.RandombotsWalkingRPG.InDoors = 0
 
 # Specify percent of active bots
 # The default is 10. With 10% of all bots going active or inactive each minute.
-AiPlayerbot.BotActiveAlone = 100
+AiPlayerbot.BotActiveAlone = 90
 
 # Premade spell to avoid (undetected spells)
 # spellid-radius, ...
