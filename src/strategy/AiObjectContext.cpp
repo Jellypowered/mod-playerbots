@@ -51,6 +51,14 @@ AiObjectContext::AiObjectContext(PlayerbotAI* botAI) : PlayerbotAIAware(botAI)
     actionContexts.Add(new RaidUlduarActionContext());
     actionContexts.Add(new RaidIccActionContext());
     actionContexts.Add(new WotlkDungeonUKActionContext());
+    actionContexts.Add(new WotlkDungeonNexActionContext());
+    actionContexts.Add(new WotlkDungeonANActionContext());
+    actionContexts.Add(new WotlkDungeonOKActionContext());
+    actionContexts.Add(new WotlkDungeonDTKActionContext());
+    actionContexts.Add(new WotlkDungeonVHActionContext());
+    actionContexts.Add(new WotlkDungeonGDActionContext());
+    actionContexts.Add(new WotlkDungeonHoSActionContext());
+    actionContexts.Add(new WotlkDungeonHoLActionContext());
 
     triggerContexts.Add(new TriggerContext());
     triggerContexts.Add(new ChatTriggerContext());
@@ -62,6 +70,14 @@ AiObjectContext::AiObjectContext(PlayerbotAI* botAI) : PlayerbotAIAware(botAI)
     triggerContexts.Add(new RaidUlduarTriggerContext());
     triggerContexts.Add(new RaidIccTriggerContext());
     triggerContexts.Add(new WotlkDungeonUKTriggerContext());
+    triggerContexts.Add(new WotlkDungeonNexTriggerContext());
+    triggerContexts.Add(new WotlkDungeonANTriggerContext());
+    triggerContexts.Add(new WotlkDungeonOKTriggerContext());
+    triggerContexts.Add(new WotlkDungeonDTKTriggerContext());
+    triggerContexts.Add(new WotlkDungeonVHTriggerContext());
+    triggerContexts.Add(new WotlkDungeonGDTriggerContext());
+    triggerContexts.Add(new WotlkDungeonHoSTriggerContext());
+    triggerContexts.Add(new WotlkDungeonHoLTriggerContext());
 
     valueContexts.Add(new ValueContext());
 
