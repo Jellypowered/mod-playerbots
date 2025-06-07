@@ -401,7 +401,10 @@ bool LfgAction::Execute(Event event)
         return false;
 
     if (allowedClassNr[cls].find(role) != allowedClassNr[cls].end() && allowedClassNr[cls][role] == 0)
+    {
+        LOG_INFO("playerbots", "LfgAction::Execute failed: no slots for class {} and role {}", cls, role);
         return false;
+    }
 
     if (bot->GetGroup())
     {
@@ -418,7 +421,7 @@ bool LfgAction::Execute(Event event)
     {
         Event acceptEvent("accept invitation", requester ? requester->GetGUID() : ObjectGuid::Empty);
         if (!botAI->DoSpecificAction("accept invitation", acceptEvent, true))
-            return false;
+        return false;
 
         std::map<std::string, std::string> placeholders;
         placeholders["%role"] = (role & BOT_ROLE_TANK ? "tank" : (role & BOT_ROLE_HEALER ? "healer" : "dps"));

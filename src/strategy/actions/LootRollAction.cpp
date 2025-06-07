@@ -39,7 +39,28 @@ bool LootRollAction::Execute(Event event)
         ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
         if (!proto)
             continue;
-        
+
+    // Set up the check to allow loot rolls to have the disenchant option
+    // if anyone in the group has the required skill level otherwise
+    // greed on the item. 
+    bool DePresent = false;
+    Group::MemberSlotList const& members = group->GetMemberSlots();
+
+    for (GroupReference* ref = group->GetFirstMember(); ref != nullptr; ref = ref->next())
+    {
+    Player* member = ref->GetSource();
+    if (!member)
+        continue;
+
+    uint32 enchantingSkill = member->GetSkillValue(SKILL_ENCHANTING);
+
+    if (member->HasSkill(SKILL_ENCHANTING) &&
+        (proto->RequiredDisenchantSkill == 0 || enchantingSkill >= proto->RequiredDisenchantSkill))
+        {
+            DePresent = true;
+            break;
+        }
+    }
         std::string itemUsageParam;
         if (randomProperty != 0) {
             itemUsageParam = std::to_string(itemId) + "," + std::to_string(randomProperty);
@@ -47,7 +68,7 @@ bool LootRollAction::Execute(Event event)
             itemUsageParam = std::to_string(itemId);
         }
         ItemUsage usage = AI_VALUE2(ItemUsage, "item usage", itemUsageParam);
-        
+
         // Armor Tokens are classed as MISC JUNK (Class 15, Subclass 0), luckily no other items I found have class bits and epic quality.
         if (proto->Class == ITEM_CLASS_MISC && proto->SubClass == ITEM_SUBCLASS_JUNK && proto->Quality == ITEM_QUALITY_EPIC)
         {
@@ -95,13 +116,54 @@ bool LootRollAction::Execute(Event event)
                     }
                 else 
                     {
-                        vote = GREED;
+                        vote = NEED;
                     }
             }
             else if (vote == GREED)
             {
-                vote = PASS;
-            }
+            if (DePresent && proto->DisenchantID != 0 && sPlayerbotAIConfig->allowDisenchant == 1)
+            {
+                switch (proto->Quality)
+                {
+                    case ITEM_QUALITY_UNCOMMON: // Green
+                    if (sPlayerbotAIConfig->deGreens == 1)
+                    {
+                    vote = DISENCHANT;
+                    }
+                break;
+
+                    case ITEM_QUALITY_RARE: // Blue
+                    if (sPlayerbotAIConfig->deBlues == 1)
+                    {
+                    vote = DISENCHANT;
+                    }
+                break;
+
+                    case ITEM_QUALITY_EPIC: // Purple
+                    if (sPlayerbotAIConfig->dePurples == 1)
+                    {
+                    vote = DISENCHANT;
+                    }
+                break;
+
+                    case ITEM_QUALITY_LEGENDARY: // Orange
+                    if (sPlayerbotAIConfig->deOranges == 1)
+                    {
+                    vote = DISENCHANT;
+                    }
+                break;
+
+            default:
+                // Do nothing — vote remains GREED
+                break;
+        }
+    }
+    else
+    {
+        vote = GREED; // Not disenchantable or allowed
+    }
+}
+
         }
         switch (group->GetLootMethod())
         {
@@ -116,7 +178,6 @@ bool LootRollAction::Execute(Event event)
         // One item at a time
         return true;
     }
-
     return false;
 }
 
