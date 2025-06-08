@@ -72,6 +72,7 @@ public:
     float maxAoeAvoidRadius;
     std::set<uint32> aoeAvoidSpellWhitelist;
     bool tellWhenAvoidAoe;
+    std::set<uint32> disallowedGameObjects;
 
     uint32 openGoSpell;
     bool randomBotAutologin;
@@ -222,6 +223,7 @@ public:
 
     std::string commandPrefix, commandSeparator;
     std::string randomBotAccountPrefix;
+    std::string tradeActionExcludedPrefixes;
     uint32 randomBotAccountCount;
     bool randomBotRandomPassword;
     bool deleteRandomBotAccounts;
