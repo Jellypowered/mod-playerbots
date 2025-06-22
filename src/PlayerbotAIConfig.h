@@ -56,6 +56,7 @@ public:
 
     bool enabled;
     bool disabledWithoutRealPlayer;
+    bool EnableICCBuffs;
     bool allowAccountBots, allowGuildBots, allowTrustedAccountBots;
     bool randomBotGuildNearby, randomBotInvitePlayer, inviteChat;
     uint32 globalCoolDown, reactDelay, maxWaitForMove, disableMoveSplinePath, maxMovementSearchTime, expireActionTime,
@@ -223,7 +224,6 @@ public:
 
     std::string commandPrefix, commandSeparator;
     std::string randomBotAccountPrefix;
-    std::string tradeActionExcludedPrefixes;
     uint32 randomBotAccountCount;
     bool randomBotRandomPassword;
     bool deleteRandomBotAccounts;
