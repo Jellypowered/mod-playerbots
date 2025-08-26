@@ -339,6 +339,8 @@ public:
     bool autoPickTalents;
     bool autoUpgradeEquip;
     int32 hunterWolfPet;
+    int32 defaultPetStance;
+    int32 petChatCommandDebug;
     bool autoLearnTrainerSpells;
     bool autoDoQuests;
     bool enableNewRpgStrategy;
