@@ -354,6 +354,11 @@ public:
     bool lootGreedRollLevel;
     bool lootRollRecipe;
     bool lootRollDisenchant;
+    bool allowDisenchant;
+    bool deGreens;
+    bool deBlues;
+    bool dePurples;
+    bool deOranges;
     std::string autoPickReward;
     bool autoEquipUpgradeLoot;
     float equipUpgradeThreshold;

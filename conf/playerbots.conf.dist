@@ -310,6 +310,15 @@ AiPlayerbot.LootRollRecipe = 0
 # Default: 0 (disabled)
 AiPlayerbot.LootRollDisenchant = 0
 
+# Bots will be allowed to roll Disenchant if allowed and meet
+# the proper conditions.
+# Default: 0 (disabled)
+AiPlayerbot.Disenchant = 0
+AiPlayerbot.Disenchant.Uncommon = 0
+AiPlayerbot.Disenchant.Rare = 0
+AiPlayerbot.Disenchant.Epic = 0
+AiPlayerbot.Disenchant.Legendary = 0
+
 # A list of GameObject GUIDs that bots will not interact with.
 # List of default GUIDs:
 # QuestItems:

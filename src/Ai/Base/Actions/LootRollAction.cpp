@@ -92,6 +92,56 @@ bool LootRollAction::Execute(Event /*event*/)
         else if (vote == GREED && !sPlayerbotAIConfig.lootGreedRollLevel)
             vote = PASS;
 
+        // Set up the check to allow loot rolls to have the disenchant option
+        // if anyone in the group has the required skill level otherwise
+        // greed on the item.
+        bool DePresent = false;
+        for (GroupReference* ref = group->GetFirstMember(); ref != nullptr; ref = ref->next())
+        {
+            Player* member = ref->GetSource();
+            if (!member)
+                continue;
+
+            uint32 enchantingSkill = member->GetSkillValue(SKILL_ENCHANTING);
+
+            if (member->HasSkill(SKILL_ENCHANTING) &&
+                (proto->RequiredDisenchantSkill == 0 || enchantingSkill >= proto->RequiredDisenchantSkill))
+            {
+                DePresent = true;
+                break;
+            }
+        }
+
+        // Apply quality-based disenchant decision tree
+        if (vote == GREED && DePresent && proto->DisenchantID != 0 && sPlayerbotAIConfig.allowDisenchant)
+        {
+            switch (proto->Quality)
+            {
+                case ITEM_QUALITY_UNCOMMON:
+                    if (sPlayerbotAIConfig.deGreens)
+                        vote = DISENCHANT;
+                    break;
+
+                case ITEM_QUALITY_RARE:
+                    if (sPlayerbotAIConfig.deBlues)
+                        vote = DISENCHANT;
+                    break;
+
+                case ITEM_QUALITY_EPIC:
+                    if (sPlayerbotAIConfig.dePurples)
+                        vote = DISENCHANT;
+                    break;
+
+                case ITEM_QUALITY_LEGENDARY:
+                    if (sPlayerbotAIConfig.deOranges)
+                        vote = DISENCHANT;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
         switch (group->GetLootMethod())
         {
             case MASTER_LOOT:
