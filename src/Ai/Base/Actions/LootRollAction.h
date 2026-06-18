@@ -8,6 +8,9 @@
 
 #include "QueryItemUsageAction.h"
 
+#include <unordered_map>
+
+class Group;
 class PlayerbotAI;
 
 struct ItemTemplate;
@@ -22,7 +25,20 @@ public:
     bool Execute(Event event) override;
 
 protected:
+    struct DisenchanterCacheEntry
+    {
+        uint32 highestEnchantingSkill = 0;
+        uint64 memberSignature = 0;
+        time_t expiresAt = 0;
+    };
+
     RollVote CalculateRollVote(ItemTemplate const* proto, ItemUsage usage = ITEM_USAGE_NONE);
+    bool IsDisenchanterPresent(Group const* group, ItemTemplate const* proto) const;
+    bool IsDisenchantEnabledForQuality(ItemTemplate const* proto) const;
+    uint64 GetGroupMemberSignature(Group const* group) const;
+
+    static constexpr time_t DISENCHANT_CACHE_TTL = 600;
+    mutable std::unordered_map<uint32, DisenchanterCacheEntry> disenchanterCache;
 };
 
 bool CanBotUseToken(ItemTemplate const* proto, Player* bot);

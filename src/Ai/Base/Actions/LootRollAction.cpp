@@ -5,6 +5,8 @@
 
 #include "LootRollAction.h"
 
+#include <algorithm>
+
 #include "Event.h"
 #include "Group.h"
 #include "ItemUsageValue.h"
@@ -12,6 +14,7 @@
 #include "ObjectMgr.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
+#include "GameTime.h"
 
 bool LootRollAction::Execute(Event /*event*/)
 {
@@ -92,55 +95,10 @@ bool LootRollAction::Execute(Event /*event*/)
         else if (vote == GREED && !sPlayerbotAIConfig.lootGreedRollLevel)
             vote = PASS;
 
-        // Set up the check to allow loot rolls to have the disenchant option
-        // if anyone in the group has the required skill level otherwise
-        // greed on the item.
-        bool DePresent = false;
-        for (GroupReference* ref = group->GetFirstMember(); ref != nullptr; ref = ref->next())
-        {
-            Player* member = ref->GetSource();
-            if (!member)
-                continue;
-
-            uint32 enchantingSkill = member->GetSkillValue(SKILL_ENCHANTING);
-
-            if (member->HasSkill(SKILL_ENCHANTING) &&
-                (proto->RequiredDisenchantSkill == 0 || enchantingSkill >= proto->RequiredDisenchantSkill))
-            {
-                DePresent = true;
-                break;
-            }
-        }
-
-        // Apply quality-based disenchant decision tree
-        if (vote == GREED && DePresent && proto->DisenchantID != 0 && sPlayerbotAIConfig.allowDisenchant)
-        {
-            switch (proto->Quality)
-            {
-                case ITEM_QUALITY_UNCOMMON:
-                    if (sPlayerbotAIConfig.deGreens)
-                        vote = DISENCHANT;
-                    break;
-
-                case ITEM_QUALITY_RARE:
-                    if (sPlayerbotAIConfig.deBlues)
-                        vote = DISENCHANT;
-                    break;
-
-                case ITEM_QUALITY_EPIC:
-                    if (sPlayerbotAIConfig.dePurples)
-                        vote = DISENCHANT;
-                    break;
-
-                case ITEM_QUALITY_LEGENDARY:
-                    if (sPlayerbotAIConfig.deOranges)
-                        vote = DISENCHANT;
-                    break;
-
-                default:
-                    break;
-            }
-        }
+        // Only check for a disenchanter when disenchant is actually a valid configured roll.
+        if (vote == GREED && proto->DisenchantID != 0 && sPlayerbotAIConfig.allowDisenchant &&
+            IsDisenchantEnabledForQuality(proto) && IsDisenchanterPresent(group, proto))
+            vote = DISENCHANT;
 
         switch (group->GetLootMethod())
         {
@@ -157,6 +115,70 @@ bool LootRollAction::Execute(Event /*event*/)
     }
 
     return false;
+}
+
+bool LootRollAction::IsDisenchanterPresent(Group const* group, ItemTemplate const* proto) const
+{
+    if (!group || !proto)
+        return false;
+
+    uint32 const groupId = group->GetGUID().GetCounter();
+    uint64 const memberSignature = GetGroupMemberSignature(group);
+    time_t const now = GameTime::GetGameTime().count();
+
+    DisenchanterCacheEntry& cacheEntry = disenchanterCache[groupId];
+    if (cacheEntry.expiresAt <= now || cacheEntry.memberSignature != memberSignature)
+    {
+        cacheEntry.highestEnchantingSkill = 0;
+        cacheEntry.memberSignature = memberSignature;
+        cacheEntry.expiresAt = now + DISENCHANT_CACHE_TTL;
+
+        for (GroupReference const* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* const member = ref->GetSource();
+            if (!member || !member->HasSkill(SKILL_ENCHANTING))
+                continue;
+
+            cacheEntry.highestEnchantingSkill = std::max(cacheEntry.highestEnchantingSkill, member->GetSkillValue(SKILL_ENCHANTING));
+        }
+    }
+
+    return proto->RequiredDisenchantSkill == 0 || cacheEntry.highestEnchantingSkill >= proto->RequiredDisenchantSkill;
+}
+
+bool LootRollAction::IsDisenchantEnabledForQuality(ItemTemplate const* proto) const
+{
+    if (!proto)
+        return false;
+
+    switch (proto->Quality)
+    {
+        case ITEM_QUALITY_UNCOMMON:
+            return sPlayerbotAIConfig.deGreens;
+        case ITEM_QUALITY_RARE:
+            return sPlayerbotAIConfig.deBlues;
+        case ITEM_QUALITY_EPIC:
+            return sPlayerbotAIConfig.dePurples;
+        case ITEM_QUALITY_LEGENDARY:
+            return sPlayerbotAIConfig.deOranges;
+        default:
+            return false;
+    }
+}
+
+uint64 LootRollAction::GetGroupMemberSignature(Group const* group) const
+{
+    if (!group)
+        return 0;
+
+    uint64 signature = group->GetMembersCount();
+    for (Group::MemberSlot const& memberSlot : group->GetMemberSlots())
+    {
+        uint64 const guid = memberSlot.guid.GetRawValue();
+        signature ^= guid + 0x9e3779b97f4a7c15ULL + (signature << 6) + (signature >> 2);
+    }
+
+    return signature;
 }
 
 RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto, ItemUsage usage)
