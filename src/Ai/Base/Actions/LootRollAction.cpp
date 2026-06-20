@@ -23,6 +23,7 @@ bool LootRollAction::Execute(Event /*event*/)
         return false;
 
     std::vector<Roll*> rolls = group->GetRolls();
+    bool voted = false;
     for (Roll*& roll : rolls)
     {
         auto voteItr = roll->playerVote.find(bot->GetGUID());
@@ -110,11 +111,10 @@ bool LootRollAction::Execute(Event /*event*/)
                 group->CountRollVote(bot->GetGUID(), guid, vote);
                 break;
         }
-        // One item at a time
-        return true;
+        voted = true;
     }
 
-    return false;
+    return voted;
 }
 
 bool LootRollAction::IsDisenchanterPresent(Group const* group, ItemTemplate const* proto) const
@@ -122,9 +122,18 @@ bool LootRollAction::IsDisenchanterPresent(Group const* group, ItemTemplate cons
     if (!group || !proto)
         return false;
 
+    // Clean up expired cache entries to prevent memory leaks
+    time_t const now = GameTime::GetGameTime().count();
+    for (auto it = disenchanterCache.begin(); it != disenchanterCache.end();)
+    {
+        if (it->second.expiresAt < now)
+            it = disenchanterCache.erase(it);
+        else
+            ++it;
+    }
+
     uint32 const groupId = group->GetGUID().GetCounter();
     uint64 const memberSignature = GetGroupMemberSignature(group);
-    time_t const now = GameTime::GetGameTime().count();
 
     DisenchanterCacheEntry& cacheEntry = disenchanterCache[groupId];
     if (cacheEntry.expiresAt <= now || cacheEntry.memberSignature != memberSignature)
