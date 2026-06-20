@@ -122,37 +122,53 @@ bool LootRollAction::IsDisenchanterPresent(Group const* group, ItemTemplate cons
     if (!group || !proto)
         return false;
 
-    // Clean up expired cache entries to prevent memory leaks
-    time_t const now = GameTime::GetGameTime().count();
-    for (auto it = disenchanterCache.begin(); it != disenchanterCache.end();)
-    {
-        if (it->second.expiresAt < now)
-            it = disenchanterCache.erase(it);
-        else
-            ++it;
-    }
-
     uint32 const groupId = group->GetGUID().GetCounter();
     uint64 const memberSignature = GetGroupMemberSignature(group);
+    time_t const now = GameTime::GetGameTime().count();
 
-    DisenchanterCacheEntry& cacheEntry = disenchanterCache[groupId];
-    if (cacheEntry.expiresAt <= now || cacheEntry.memberSignature != memberSignature)
+    // Linear search through fixed-size array - no heap allocations
+    DisenchanterCacheEntry* cacheEntry = nullptr;
+    for (size_t i = 0; i < MAX_CACHED_GROUPS; ++i)
     {
-        cacheEntry.highestEnchantingSkill = 0;
-        cacheEntry.memberSignature = memberSignature;
-        cacheEntry.expiresAt = now + DISENCHANT_CACHE_TTL;
-
-        for (GroupReference const* ref = group->GetFirstMember(); ref; ref = ref->next())
+        if (disenchanterCache[i].groupId == groupId)
         {
-            Player* const member = ref->GetSource();
-            if (!member || !member->HasSkill(SKILL_ENCHANTING))
-                continue;
-
-            cacheEntry.highestEnchantingSkill = std::max(cacheEntry.highestEnchantingSkill, static_cast<uint32>(member->GetSkillValue(SKILL_ENCHANTING)));
+            cacheEntry = &disenchanterCache[i];
+            break;
         }
     }
 
-    return proto->RequiredDisenchantSkill == 0 || cacheEntry.highestEnchantingSkill >= proto->RequiredDisenchantSkill;
+    // If not found, use first expired slot or wrap around
+    if (!cacheEntry || cacheEntry->expiresAt < now)
+    {
+        // Find expired entry first
+        for (size_t i = 0; i < MAX_CACHED_GROUPS && !cacheEntry; ++i)
+        {
+            if (disenchanterCache[i].expiresAt < now)
+                cacheEntry = &disenchanterCache[i];
+        }
+        // If still no entry, overwrite oldest
+        if (!cacheEntry)
+            cacheEntry = &disenchanterCache[groupId % MAX_CACHED_GROUPS];
+    }
+
+    if (cacheEntry->expiresAt <= now || cacheEntry->memberSignature != memberSignature)
+    {
+        cacheEntry->groupId = groupId;
+        cacheEntry->highestEnchantingSkill = 0;
+        cacheEntry->memberSignature = memberSignature;
+        cacheEntry->expiresAt = now + DISENCHANT_CACHE_TTL;
+
+        for (GroupReference const* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player const* const member = ref->GetSource();
+            if (!member || !member->HasSkill(SKILL_ENCHANTING))
+                continue;
+
+            cacheEntry->highestEnchantingSkill = std::max(cacheEntry->highestEnchantingSkill, static_cast<uint32>(member->GetSkillValue(SKILL_ENCHANTING)));
+        }
+    }
+
+    return proto->RequiredDisenchantSkill == 0 || cacheEntry->highestEnchantingSkill >= proto->RequiredDisenchantSkill;
 }
 
 bool LootRollAction::IsDisenchantEnabledForQuality(ItemTemplate const* proto) const
