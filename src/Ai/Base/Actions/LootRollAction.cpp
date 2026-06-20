@@ -139,7 +139,7 @@ bool LootRollAction::IsDisenchanterPresent(Group const* group, ItemTemplate cons
             if (!member || !member->HasSkill(SKILL_ENCHANTING))
                 continue;
 
-            cacheEntry.highestEnchantingSkill = std::max(cacheEntry.highestEnchantingSkill, member->GetSkillValue(SKILL_ENCHANTING));
+            cacheEntry.highestEnchantingSkill = std::max(cacheEntry.highestEnchantingSkill, static_cast<uint32>(member->GetSkillValue(SKILL_ENCHANTING)));
         }
     }
 
