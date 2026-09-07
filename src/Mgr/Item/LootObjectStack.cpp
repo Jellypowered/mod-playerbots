@@ -373,7 +373,55 @@ void LootObjectStack::Remove(ObjectGuid guid)
         availableLoot.erase(i);
 }
 
-void LootObjectStack::Clear() { availableLoot.clear(); }
+void LootObjectStack::Clear()
+{
+    availableLoot.clear();
+    CancelLoot(pendingLoot);
+}
+
+bool LootObjectStack::IsLootPending()
+{
+    if (!pendingLoot)
+        return false;
+
+    // Wait for the queued release to finish before selecting another target.
+    // A real client may also have closed or replaced a selfbot's loot window.
+    if ((awaitingRelease && bot->GetLootGUID() != pendingLoot) ||
+        (std::chrono::steady_clock::now() >= pendingUntil && !bot->IsNonMeleeSpellCast(false)))
+    {
+        CancelLoot(pendingLoot);
+        return false;
+    }
+
+    return true;
+}
+
+void LootObjectStack::BeginLoot(ObjectGuid guid)
+{
+    pendingLoot = guid;
+    awaitingRelease = false;
+    // A rejected request or interrupted gathering cast may produce no loot response.
+    // Keep the target retryable, but do not enqueue another opening every AI tick.
+    pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+}
+
+void LootObjectStack::LootOpened(ObjectGuid guid)
+{
+    if (pendingLoot == guid)
+    {
+        awaitingRelease = true;
+        pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    }
+}
+
+void LootObjectStack::CancelLoot(ObjectGuid guid)
+{
+    if (pendingLoot == guid)
+    {
+        pendingLoot.Clear();
+        awaitingRelease = false;
+    }
+}
 
 bool LootObjectStack::CanLoot(float maxDistance)
 {
