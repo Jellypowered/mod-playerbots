@@ -3688,11 +3688,12 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget)
         GameObject* go = GetGameObject(loot.guid);
         if (go && go->isSpawned())
         {
-            WorldPacket packetgouse(CMSG_GAMEOBJ_USE, 8);
-            packetgouse << loot.guid;
-            bot->GetSession()->HandleGameObjectUseOpcode(packetgouse);
+            // Opening/gathering is a targeted spell. Its effect performs the
+            // interaction after lock/range/cast validation; calling GAMEOBJ_USE
+            // here can run scripts or toggle the object before the cast succeeds.
             targets.SetGOTarget(go);
             faceTo = go;
+            ServerFacade::instance().SetFacingTo(bot, go);
         }
         else if (itemTarget)
         {
