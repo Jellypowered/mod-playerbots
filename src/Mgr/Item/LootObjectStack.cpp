@@ -401,13 +401,14 @@ void LootObjectStack::BeginLoot(ObjectGuid guid)
     pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
 }
 
-void LootObjectStack::LootOpened(ObjectGuid guid)
+bool LootObjectStack::LootOpened(ObjectGuid guid)
 {
-    if (pendingLoot == guid)
-    {
-        awaitingRelease = true;
-        pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-    }
+    if (pendingLoot != guid)
+        return false;
+
+    awaitingRelease = true;
+    pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    return true;
 }
 
 void LootObjectStack::CancelLoot(ObjectGuid guid)

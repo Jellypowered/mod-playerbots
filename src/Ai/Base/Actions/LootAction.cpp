@@ -381,9 +381,6 @@ bool StoreLootAction::Execute(Event event)
         return false;
     }
 
-    if (!currentLoot)
-        bot->SetLootGUID(guid);
-
     if (p.size() < 14)
         return false;
 
@@ -392,7 +389,11 @@ bool StoreLootAction::Execute(Event event)
     if (p.size() - p.rpos() < size_t(items) * 22)
         return false;
 
-    availableLoot->LootOpened(guid);
+    if (!availableLoot->LootOpened(guid))
+        return false;
+
+    if (!currentLoot)
+        bot->SetLootGUID(guid);
 
     if (gold > 0)
     {

@@ -82,7 +82,7 @@ public:
 
     bool IsLootPending();
     void BeginLoot(ObjectGuid guid);
-    void LootOpened(ObjectGuid guid);
+    bool LootOpened(ObjectGuid guid);
     void CancelLoot(ObjectGuid guid);
 
 private:

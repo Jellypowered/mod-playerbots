@@ -90,9 +90,14 @@ bool UseItemAction::UseGameObject(ObjectGuid guid)
         bool added = availableLoot->Add(guid);
         context->GetValue<LootObject>("loot target")->Set(loot);
 
+        // OpenLootAction deliberately returns false while stopping movement or
+        // removing a mount, but schedules the normal retry path in those cases.
+        // Preserve that target only for those specific retry-producing states;
+        // a general false result must not report success with stale loot state.
+        bool retryGuaranteed = inRange && (bot->isMoving() || bot->IsMounted());
         std::string objectName = chat->FormatGameobject(go);
         bool requested = botAI->DoSpecificAction(inRange ? "open loot" : "move to loot", Event(), true);
-        if (!requested && (!inRange || !canContinue))
+        if (!requested && !retryGuaranteed)
         {
             if (added)
                 availableLoot->Remove(guid);
