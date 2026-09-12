@@ -9,6 +9,7 @@
 
 #include "QueryItemUsageAction.h"
 
+class Group;
 class PlayerbotAI;
 
 struct ItemTemplate;
@@ -24,6 +25,8 @@ public:
 
 protected:
     RollVote CalculateRollVote(ItemTemplate const* proto, ItemUsage usage = ITEM_USAGE_NONE);
+    bool IsDisenchanterPresent(Group const* group, ItemTemplate const* proto) const;
+    bool IsDisenchantEnabledForQuality(ItemTemplate const* proto) const;
 };
 
 bool CanBotUseToken(ItemTemplate const* proto, Player* bot);

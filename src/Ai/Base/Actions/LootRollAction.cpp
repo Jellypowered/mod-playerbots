@@ -5,6 +5,7 @@
  */
 
 #include "LootRollAction.h"
+
 #include "Event.h"
 #include "Group.h"
 #include "ItemUsageValue.h"
@@ -93,6 +94,11 @@ bool LootRollAction::Execute(Event /*event*/)
         else if (vote == GREED && !sPlayerbotAIConfig.lootGreedRollLevel)
             vote = PASS;
 
+        // Only check for a disenchanter when disenchant is actually a valid configured roll.
+        if (vote == GREED && proto->DisenchantID != 0 && sPlayerbotAIConfig.allowDisenchant &&
+            IsDisenchantEnabledForQuality(proto) && IsDisenchanterPresent(group, proto))
+            vote = DISENCHANT;
+
         switch (group->GetLootMethod())
         {
             case MASTER_LOOT:
@@ -107,6 +113,31 @@ bool LootRollAction::Execute(Event /*event*/)
     }
 
     return voted;
+}
+
+bool LootRollAction::IsDisenchanterPresent(Group const* group, ItemTemplate const* proto) const
+{
+    return group && proto && group->GetMaxEnchantingLevel() >= proto->RequiredDisenchantSkill;
+}
+
+bool LootRollAction::IsDisenchantEnabledForQuality(ItemTemplate const* proto) const
+{
+    if (!proto)
+        return false;
+
+    switch (proto->Quality)
+    {
+        case ITEM_QUALITY_UNCOMMON:
+            return sPlayerbotAIConfig.deGreens;
+        case ITEM_QUALITY_RARE:
+            return sPlayerbotAIConfig.deBlues;
+        case ITEM_QUALITY_EPIC:
+            return sPlayerbotAIConfig.dePurples;
+        case ITEM_QUALITY_LEGENDARY:
+            return sPlayerbotAIConfig.deOranges;
+        default:
+            return false;
+    }
 }
 
 RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto, ItemUsage usage)
