@@ -68,7 +68,7 @@ bool AddGatheringLootAction::AddLoot(ObjectGuid guid)
     if (loot.IsEmpty() || !wo)
         return false;
 
-    if (loot.skillId == SKILL_NONE || !loot.IsLootPossible(bot))
+    if (!loot.IsLootPossible(bot) || loot.skillId == SKILL_NONE)
         return false;
 
     return AddAllLootAction::AddLoot(guid);

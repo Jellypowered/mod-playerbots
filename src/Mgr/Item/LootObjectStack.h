@@ -7,9 +7,10 @@
 #ifndef PLAYERBOTS_LOOTOBJECTSTACK_H
 #define PLAYERBOTS_LOOTOBJECTSTACK_H
 
-#include "ObjectGuid.h"
-
+#include <array>
 #include <chrono>
+
+#include "ObjectGuid.h"
 
 class AiObjectContext;
 class Player;
@@ -21,9 +22,18 @@ class LootStrategy
 {
 public:
     LootStrategy() {}
-    virtual ~LootStrategy(){};
+    virtual ~LootStrategy() {};
     virtual bool CanLoot(ItemTemplate const* proto, AiObjectContext* context) = 0;
     virtual std::string const GetName() = 0;
+};
+
+constexpr uint8 MAX_LOOT_LOCK_REQUIREMENTS = 8;
+
+struct LootLockRequirement
+{
+    uint32 skillId = 0;
+    uint32 reqSkillValue = 0;
+    uint32 reqItem = 0;
 };
 
 class LootObject
@@ -45,6 +55,10 @@ public:
     uint32 reqItem;
 
 private:
+    void AddLockRequirement(LootLockRequirement const& requirement);
+
+    std::array<LootLockRequirement, MAX_LOOT_LOCK_REQUIREMENTS> lockRequirements;
+    uint8 lockRequirementCount = 0;
     static bool IsNeededForQuest(Player* bot, uint32 itemId);
 };
 
@@ -52,6 +66,7 @@ class LootTarget
 {
 public:
     LootTarget(ObjectGuid guid);
+    LootTarget(ObjectGuid guid, time_t asOfTime);
     LootTarget(LootTarget const& other);
 
 public:
@@ -84,6 +99,7 @@ public:
     void BeginLoot(ObjectGuid guid);
     bool LootOpened(ObjectGuid guid);
     void CancelLoot(ObjectGuid guid);
+    void RetryLoot(ObjectGuid guid);
 
 private:
     LootObject GetNearest(float maxDistance = 0);

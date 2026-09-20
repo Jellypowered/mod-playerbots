@@ -375,7 +375,15 @@ bool StoreLootAction::Execute(Event event)
 
     LootObjectStack* availableLoot = AI_VALUE(LootObjectStack*, "available loot");
     ObjectGuid currentLoot = bot->GetLootGUID();
-    if (loot_type == LOOT_NONE || (currentLoot && currentLoot != guid))
+    if (loot_type == LOOT_NONE)
+    {
+        availableLoot->RetryLoot(guid);
+        if (AI_VALUE(LootObject, "loot target").guid == guid)
+            context->GetValue<LootObject>("loot target")->Set(LootObject());
+        return false;
+    }
+
+    if (currentLoot && currentLoot != guid)
     {
         availableLoot->CancelLoot(guid);
         return false;
