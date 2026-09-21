@@ -103,13 +103,17 @@ std::string JsonRatio(double value, double total)
     return JsonNumber(total > 0.0 ? value / total : 0.0);
 }
 
-std::string JsonPath(bool perTick)
+std::string JsonPath(bool perTick, std::time_t now)
 {
     std::string dir = sConfigMgr->GetOption<std::string>("LogsDir", "", false);
     if (!dir.empty() && dir.back() != '/' && dir.back() != '\\')
         dir.push_back('/');
 
-    return dir + (perTick ? "pmon_tick.json" : "pmon_total.json");
+    char stamp[32] = "";
+    if (std::tm const* utc = std::gmtime(&now))
+        std::strftime(stamp, sizeof(stamp), "%Y%m%dT%H%M%SZ", utc);
+
+    return dir + (perTick ? "pmon_tick." : "pmon_total.") + stamp + ".json";
 }
 }  // namespace
 
@@ -543,7 +547,7 @@ void PerfMonitor::DumpJson(bool perTick)
     out << (firstMetric ? "" : "\n") << "  ]\n";
     out << "}\n";
 
-    std::string const path = JsonPath(perTick);
+    std::string const path = JsonPath(perTick, now);
     std::string const tempPath = path + ".tmp";
 
     std::ofstream file(tempPath.c_str(), std::ios::out | std::ios::trunc);
