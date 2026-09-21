@@ -14,30 +14,24 @@
 
 #define MAX_LOOT_OBJECT_COUNT 200
 
-constexpr time_t LOOT_RETRY_DELAY = 1;
+constexpr uint8 MAX_LOOT_RETRY_ATTEMPTS = 5;
+constexpr std::chrono::seconds LOOT_RETRY_MIN_DELAY(1);
+constexpr std::chrono::seconds LOOT_RETRY_MAX_DELAY(16);
 
 LootTarget::LootTarget(ObjectGuid guid) : guid(guid), asOfTime(time(nullptr)) {}
 
 LootTarget::LootTarget(ObjectGuid guid, time_t asOfTime) : guid(guid), asOfTime(asOfTime) {}
 
-LootTarget::LootTarget(LootTarget const& other)
-{
-    guid = other.guid;
-    asOfTime = other.asOfTime;
-}
-
-LootTarget& LootTarget::operator=(LootTarget const& other)
-{
-    if ((void*)this == (void*)&other)
-        return *this;
-
-    guid = other.guid;
-    asOfTime = other.asOfTime;
-
-    return *this;
-}
-
 bool LootTarget::operator<(LootTarget const& other) const { return guid < other.guid; }
+
+bool LootTarget::IsReady() const { return std::chrono::steady_clock::now() >= _retryUntil; }
+
+void LootTarget::Defer()
+{
+    _retryCount = std::min<uint8>(_retryCount + 1, MAX_LOOT_RETRY_ATTEMPTS);
+    _retryUntil = std::chrono::steady_clock::now() +
+                  std::min(LOOT_RETRY_MIN_DELAY * (1u << (_retryCount - 1)), LOOT_RETRY_MAX_DELAY);
+}
 
 void LootTargetList::shrink(time_t fromTime)
 {
@@ -60,7 +54,9 @@ void LootObject::Refresh(Player* bot, ObjectGuid lootGUID)
     skillId = SKILL_NONE;
     reqSkillValue = 0;
     reqItem = 0;
-    lockRequirementCount = 0;
+    _lockRequirementCount = 0;
+    _lockType = 0;
+    _hasUnsupportedLockRequirement = false;
     guid.Clear();
 
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
@@ -187,33 +183,43 @@ void LootObject::Refresh(Player* bot, ObjectGuid lootGUID)
 
         uint32 goId = go->GetEntry();
         uint32 lockId = go->GetGOInfo()->GetLockId();
-        LockEntry const* lockInfo = sLockStore.LookupEntry(lockId);
-        if (!lockInfo)
+        if (!lockId)
             return;
 
-        for (uint8 i = 0; i < 8; ++i)
+        LockEntry const* lockInfo = sLockStore.LookupEntry(lockId);
+        if (!lockInfo)
+        {
+            _hasUnsupportedLockRequirement = true;
+            return;
+        }
+
+        for (uint8 i = 0; i < MAX_LOCK_CASE; ++i)
         {
             switch (lockInfo->Type[i])
             {
                 case LOCK_KEY_ITEM:
-                    if (lockInfo->Index[i] > 0)
-                        AddLockRequirement({SKILL_NONE, 0, lockInfo->Index[i]});
+                    if (lockInfo->Index[i])
+                        AddLockRequirement({SKILL_NONE, 0, lockInfo->Index[i], 0});
+                    else
+                        _hasUnsupportedLockRequirement = true;
                     break;
-
                 case LOCK_KEY_SKILL:
+                    if (!lockInfo->Index[i])
+                    {
+                        _hasUnsupportedLockRequirement = true;
+                        break;
+                    }
+
                     if (goId == 13891 || goId == 19535)
-                        AddLockRequirement({});
+                        AddLockRequirement({SKILL_NONE, 0, 0, lockInfo->Index[i]});
                     else
                         AddLockRequirement({uint32(SkillByLockType(LockType(lockInfo->Index[i]))),
-                                            std::max(1u, lockInfo->Skill[i]), 0});
+                                            std::max(1u, lockInfo->Skill[i]), 0, lockInfo->Index[i]});
                     break;
-
                 case LOCK_KEY_NONE:
-                    if (!lockInfo->Index[i] && !lockInfo->Skill[i])
-                        AddLockRequirement({});
                     break;
-
                 default:
+                    _hasUnsupportedLockRequirement = true;
                     break;
             }
         }
@@ -271,20 +277,10 @@ WorldObject* LootObject::GetWorldObject(Player* bot)
     return nullptr;
 }
 
-LootObject::LootObject(LootObject const& other)
-{
-    guid = other.guid;
-    skillId = other.skillId;
-    reqSkillValue = other.reqSkillValue;
-    reqItem = other.reqItem;
-    lockRequirements = other.lockRequirements;
-    lockRequirementCount = other.lockRequirementCount;
-}
-
 void LootObject::AddLockRequirement(LootLockRequirement const& requirement)
 {
-    if (lockRequirementCount < lockRequirements.size())
-        lockRequirements[lockRequirementCount++] = requirement;
+    if (_lockRequirementCount < _lockRequirements.size())
+        _lockRequirements[_lockRequirementCount++] = requirement;
 }
 
 bool LootObject::IsLootPossible(Player* bot)
@@ -324,47 +320,48 @@ bool LootObject::IsLootPossible(Player* bot)
 
     auto canUseRequirement = [bot, botAI](LootLockRequirement const& requirement)
     {
-        if (requirement.reqItem)
-            return bot->HasItemCount(requirement.reqItem, 1);
+        if (requirement.ReqItem)
+            return bot->HasItemCount(requirement.ReqItem, 1);
 
-        if (requirement.skillId == SKILL_NONE)
+        if (requirement.SkillId == SKILL_NONE)
             return true;
 
-        if (requirement.skillId == SKILL_FISHING || !botAI->HasSkill((SkillType)requirement.skillId) ||
-            requirement.reqSkillValue > uint32(bot->GetSkillValue(requirement.skillId)))
+        if (requirement.SkillId == SKILL_FISHING || !botAI->HasSkill((SkillType)requirement.SkillId) ||
+            requirement.ReqSkillValue > uint32(bot->GetSkillValue(requirement.SkillId)))
             return false;
 
-        if (requirement.skillId == SKILL_MINING && !bot->HasItemCount(756, 1) && !bot->HasItemCount(778, 1) &&
+        if (requirement.SkillId == SKILL_MINING && !bot->HasItemCount(756, 1) && !bot->HasItemCount(778, 1) &&
             !bot->HasItemCount(1819, 1) && !bot->HasItemCount(1893, 1) && !bot->HasItemCount(1959, 1) &&
             !bot->HasItemCount(2901, 1) && !bot->HasItemCount(9465, 1) && !bot->HasItemCount(20723, 1) &&
             !bot->HasItemCount(40772, 1) && !bot->HasItemCount(40892, 1) && !bot->HasItemCount(40893, 1))
             return false;
 
-        if (requirement.skillId == SKILL_SKINNING && !bot->HasItemCount(7005, 1) && !bot->HasItemCount(40772, 1) &&
+        if (requirement.SkillId == SKILL_SKINNING && !bot->HasItemCount(7005, 1) && !bot->HasItemCount(40772, 1) &&
             !bot->HasItemCount(40893, 1) && !bot->HasItemCount(12709, 1) && !bot->HasItemCount(19901, 1))
             return false;
 
         return true;
     };
 
-    if (lockRequirementCount)
+    if (_lockRequirementCount)
     {
-        for (uint8 i = 0; i < lockRequirementCount; ++i)
+        for (uint8 i = 0; i < _lockRequirementCount; ++i)
         {
-            LootLockRequirement const& requirement = lockRequirements[i];
+            LootLockRequirement const& requirement = _lockRequirements[i];
             if (!canUseRequirement(requirement))
                 continue;
 
-            skillId = requirement.skillId;
-            reqSkillValue = requirement.reqSkillValue;
-            reqItem = requirement.reqItem;
+            skillId = requirement.SkillId;
+            reqSkillValue = requirement.ReqSkillValue;
+            reqItem = requirement.ReqItem;
+            _lockType = requirement.LockType;
             return true;
         }
 
         return false;
     }
 
-    return canUseRequirement({skillId, reqSkillValue, reqItem});
+    return !_hasUnsupportedLockRequirement && canUseRequirement({skillId, reqSkillValue, reqItem, 0});
 }
 
 bool LootObjectStack::Add(ObjectGuid guid)
@@ -395,18 +392,25 @@ void LootObjectStack::Remove(ObjectGuid guid)
 void LootObjectStack::Clear()
 {
     availableLoot.clear();
-    CancelLoot(pendingLoot);
+    CancelLoot(_pendingLoot);
 }
 
 bool LootObjectStack::IsLootPending()
 {
-    if (!pendingLoot)
+    if (!_pendingLoot)
         return false;
 
-    if ((awaitingRelease && bot->GetLootGUID() != pendingLoot) ||
-        (std::chrono::steady_clock::now() >= pendingUntil && !bot->IsNonMeleeSpellCast(false)))
+    if (_awaitingRelease && bot->GetLootGUID() != _pendingLoot)
     {
-        CancelLoot(pendingLoot);
+        CancelLoot(_pendingLoot);
+        return false;
+    }
+
+    if (std::chrono::steady_clock::now() >= _pendingUntil && !bot->IsNonMeleeSpellCast(false))
+    {
+        ObjectGuid const guid = _pendingLoot;
+        CancelLoot(guid);
+        DeferLoot(guid);
         return false;
     }
 
@@ -415,38 +419,58 @@ bool LootObjectStack::IsLootPending()
 
 void LootObjectStack::BeginLoot(ObjectGuid guid)
 {
-    pendingLoot = guid;
-    awaitingRelease = false;
-    pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    _pendingLoot = guid;
+    _awaitingRelease = false;
+    _pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
 }
 
 bool LootObjectStack::LootOpened(ObjectGuid guid)
 {
-    if (pendingLoot != guid)
+    if (_pendingLoot != guid)
         return false;
 
-    awaitingRelease = true;
-    pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+    _awaitingRelease = true;
+    _pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
     return true;
 }
 
 void LootObjectStack::CancelLoot(ObjectGuid guid)
 {
-    if (pendingLoot == guid)
+    if (_pendingLoot == guid)
     {
-        pendingLoot.Clear();
-        awaitingRelease = false;
+        _pendingLoot.Clear();
+        _awaitingRelease = false;
     }
 }
 void LootObjectStack::RetryLoot(ObjectGuid guid)
 {
-    bool const wasPending = pendingLoot == guid;
+    bool const wasPending = _pendingLoot == guid;
     CancelLoot(guid);
-    if (!wasPending)
-        return;
+    if (wasPending)
+        DeferLoot(guid);
+}
 
-    Remove(guid);
-    availableLoot.insert(LootTarget(guid, time(nullptr) + LOOT_RETRY_DELAY));
+void LootObjectStack::DeferLoot(ObjectGuid guid)
+{
+    LootTargetList::iterator itr = availableLoot.find(guid);
+    if (itr == availableLoot.end())
+    {
+        LootTarget target(guid);
+        target.Defer();
+        availableLoot.insert(target);
+        return;
+    }
+
+    LootTarget target = *itr;
+    availableLoot.erase(itr);
+    target.Defer();
+    availableLoot.insert(target);
+}
+
+bool LootObjectStack::CanAttemptLoot(ObjectGuid guid) const
+{
+    LootTargetList::const_iterator itr = availableLoot.find(guid);
+    return itr == availableLoot.end() || itr->IsReady();
 }
 
 bool LootObjectStack::CanLoot(float maxDistance)
@@ -472,7 +496,7 @@ LootObject LootObjectStack::GetNearest(float maxDistance)
     {
         ObjectGuid guid = i->guid;
 
-        if (i->asOfTime > time(nullptr))
+        if (!i->IsReady())
         {
             ++i;
             continue;
