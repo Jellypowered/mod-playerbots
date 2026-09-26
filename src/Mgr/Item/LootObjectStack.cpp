@@ -334,6 +334,17 @@ bool LootObject::IsLootPossible(Player* bot)
         if (requirement.SkillId == SKILL_NONE)
             return true;
 
+        bool const gatheringObject = requirement.SkillId == SKILL_HERBALISM || requirement.SkillId == SKILL_MINING ||
+                                     requirement.SkillId == SKILL_SKINNING || requirement.SkillId == SKILL_ENGINEERING;
+        Player* master = botAI->GetMaster();
+        bool const hasActivePlayerMaster = master && !GET_PLAYERBOT_AI(master);
+        if (gatheringObject && !hasActivePlayerMaster)
+        {
+            constexpr uint8 maxGatheringBagUsage = 80;
+            if (botAI->GetAiObjectContext()->GetValue<uint8>("bag space")->Get() > maxGatheringBagUsage)
+                return false;
+        }
+
         if (requirement.SkillId == SKILL_FISHING || !botAI->HasSkill((SkillType)requirement.SkillId) ||
             requirement.ReqSkillValue > uint32(bot->GetSkillValue(requirement.SkillId)))
             return false;
@@ -432,14 +443,13 @@ void LootObjectStack::BeginLoot(ObjectGuid guid)
     _pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
 }
 
-bool LootObjectStack::LootOpened(ObjectGuid guid)
+void LootObjectStack::LootOpened(ObjectGuid guid)
 {
     if (_pendingLoot != guid)
-        return false;
+        return;
 
     _awaitingRelease = true;
     _pendingUntil = std::chrono::steady_clock::now() + std::chrono::seconds(15);
-    return true;
 }
 
 void LootObjectStack::CancelLoot(ObjectGuid guid)

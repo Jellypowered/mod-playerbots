@@ -172,8 +172,8 @@ bool UseItemAction::UseItem(Item* item, ObjectGuid goGuid, Item* itemTarget, Uni
 
     uint32 spellId = 0;
     ItemTemplate const* itemProto = item->GetTemplate();
-    bool const isGenericLearnItem = itemProto->Spells[0].SpellId == SPELL_LEARNING_1
-        || itemProto->Spells[0].SpellId == SPELL_LEARNING_2;
+    bool const isGenericLearnItem =
+        itemProto->Spells[0].SpellId == SPELL_LEARNING_1 || itemProto->Spells[0].SpellId == SPELL_LEARNING_2;
 
     if (isGenericLearnItem)
     {
