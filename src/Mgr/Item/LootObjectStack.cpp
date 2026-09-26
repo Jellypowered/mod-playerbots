@@ -295,8 +295,7 @@ bool LootObject::IsLootPossible(Player* bot)
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
     if (!botAI)
         return false;
-    if (reqItem && !bot->HasItemCount(reqItem, 1))
-        return false;
+
     if (abs(worldObj->GetPositionZ() - bot->GetPositionZ()) > INTERACTION_DISTANCE - 2.0f)
         return false;
 
@@ -316,14 +315,6 @@ bool LootObject::IsLootPossible(Player* bot)
     // Conditional objects (quest chests, goobers, ...) are gated client-side on quest state.
     // A bot has no client, so make the same call the server makes for one.
     if (go && go->HasFlag(GAMEOBJECT_FLAGS, GO_FLAG_INTERACT_COND) && !go->ActivateToQuest(bot))
-        return false;
-
-    // Prevent bots from repeatedly gathering when their bags are nearly full.
-    bool const gatheringObject = skillId == SKILL_HERBALISM || skillId == SKILL_MINING ||
-                                 skillId == SKILL_SKINNING || skillId == SKILL_ENGINEERING;
-    Player* master = botAI->GetMaster();
-    bool const hasActivePlayerMaster = master && !GET_PLAYERBOT_AI(master);
-    if (gatheringObject && !hasActivePlayerMaster && botAI->GetAiObjectContext()->GetValue<uint8>("bag space")->Get() > 80)
         return false;
 
     auto canUseRequirement = [bot, botAI](LootLockRequirement const& requirement)
@@ -460,6 +451,7 @@ void LootObjectStack::CancelLoot(ObjectGuid guid)
         _awaitingRelease = false;
     }
 }
+
 void LootObjectStack::RetryLoot(ObjectGuid guid)
 {
     bool const wasPending = _pendingLoot == guid;

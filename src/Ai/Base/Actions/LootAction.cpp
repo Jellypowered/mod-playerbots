@@ -231,32 +231,6 @@ uint32 OpenLootAction::GetOpeningSpell(LootObject& lootObject, GameObject* go)
     return sPlayerbotAIConfig.openGoSpell;
 }
 
-uint32 OpenLootAction::GetKeySpell(uint32 keyItemId)
-{
-    ItemTemplate const* keyItem = sObjectMgr->GetItemTemplate(keyItemId);
-    if (!keyItem)
-        return 0;
-
-    // A key opens a lock through its own on-use spell (e.g. Dead-Tooth's Key ->
-    // spell 8517 "Opening"). Only effect 0 counts: PlayerbotAI::CastSpell routes
-    // OPEN_LOCK casts off Effects[0].
-    for (uint8 i = 0; i < MAX_ITEM_PROTO_SPELLS; ++i)
-    {
-        uint32 spellId = keyItem->Spells[i].SpellId;
-        if (!spellId)
-            continue;
-
-        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
-        if (!spellInfo)
-            continue;
-
-        if (spellInfo->Effects[0].Effect == SPELL_EFFECT_OPEN_LOCK)
-            return spellId;
-    }
-
-    return 0;
-}
-
 bool OpenLootAction::CanOpenLock(LootObject& lootObject, SpellInfo const* spellInfo, GameObject* /*go*/)
 {
     if (!lootObject.GetLockType())
