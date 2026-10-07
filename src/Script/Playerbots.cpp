@@ -5,25 +5,28 @@
  */
 
 #include "Playerbots.h"
+
+#include <mysqld_error.h>
+
+#include "AllMapScript.h"
 #include "BattleGroundTactics.h"
 #include "BattlefieldScript.h"
+#include "BuiltInConfig.h"
 #include "Channel.h"
 #include "CheckMountStateAction.h"
 #include "Config.h"
-#include "BuiltInConfig.h"
 #include "DBUpdater.h"
 #include "DatabaseEnv.h"
-#include "PlayerbotsDatabase.h"
-#include <mysqld_error.h>
-#include "AllMapScript.h"
 #include "GlobalScript.h"
 #include "GuildTaskMgr.h"
+#include "HumanPlayerRoster.h"
 #include "PlayerScript.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotCommandScript.h"
 #include "PlayerbotGuildMgr.h"
 #include "PlayerbotSpellRepository.h"
 #include "PlayerbotWorldThreadProcessor.h"
+#include "PlayerbotsDatabase.h"
 #include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
 #include "ServerScript.h"
@@ -146,6 +149,7 @@ public:
     {
         if (!player->GetSession()->IsHeadless())
         {
+            HumanPlayerRoster::Instance().Add(player->GetGUID());
             PlayerbotsMgr::instance().AddPlayerbotData(player, false);
             sRandomPlayerbotMgr.OnPlayerLogin(player);
 
@@ -153,14 +157,14 @@ public:
             // license especially if you are distributing a repack or hosting a public server
             // e.g. you can replace the URL with your own repository,
             // but it should be publicly accessible and include all modifications you've made
-            if (sPlayerbotAIConfig.enabled)
+            if (sPlayerbotAIConfig.Enabled)
             {
                 ChatHandler(player->GetSession()).SendSysMessage(
                     "|cff00ff00This server runs with |cff00ccffmod-playerbots|r "
                     "|cffcccccchttps://github.com/mod-playerbots/mod-playerbots|r");
             }
 
-            if (sPlayerbotAIConfig.enabled || sPlayerbotAIConfig.randomBotAutologin)
+            if (sPlayerbotAIConfig.Enabled || sPlayerbotAIConfig.RandomBotAutologin)
             {
                 std::string maxAllowedBotCount = std::to_string(sRandomPlayerbotMgr.GetMaxAllowedBotCount());
 
@@ -172,6 +176,7 @@ public:
 
     void OnPlayerBeforeLogout(Player* player) override
     {
+        HumanPlayerRoster::Instance().Remove(player->GetGUID());
         if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
         {
             PlayerbotAI* botAI = PlayerbotsMgr::instance().GetPlayerbotAI(player);
@@ -213,8 +218,8 @@ public:
             return true;
 
         // If this is a SelfBot, do nothing
-        PlayerbotAI* ai = GET_PLAYERBOT_AI(player);
-        if (!ai || IsSelfBot(player))
+        PlayerbotAI* botAI = GET_PLAYERBOT_AI(player);
+        if (!botAI || IsSelfBot(player))
             return true;
 
         // Cross-map bot teleport: defer visibility reference cleanup.
@@ -261,9 +266,9 @@ public:
 
     using PlayerScript::OnPlayerCanUseChat;  // keep the base overloads visible
 
-    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Player* receiver) override
+    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Player* receiver) override
     {
-        if (type != CHAT_MSG_WHISPER)
+        if (type != CHAT_MSG_WHISPER || lang == LANG_ADDON)
         {
             return true;
         }
@@ -286,8 +291,12 @@ public:
         return true;
     }
 
-    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Group* group) override
+    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Group* group) override
     {
+        // Addon traffic (DBM, Carbonite, ...) is no bot command; its text used to trigger item commands like trade.
+        if (lang == LANG_ADDON)
+            return true;
+
         for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
         {
             Player* const member = itr->GetSource();
@@ -306,9 +315,9 @@ public:
         return true;
     }
 
-    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Guild* /*guild*/) override
+    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Guild* /*guild*/) override
     {
-        if (type != CHAT_MSG_GUILD)
+        if (type != CHAT_MSG_GUILD || lang == LANG_ADDON)
             return true;
 
         PlayerbotMgr* playerbotMgr = PlayerbotsMgr::instance().GetPlayerbotMgr(player);
@@ -358,7 +367,7 @@ public:
     void OnPlayerGiveXP(Player* player, uint32& amount, Unit* /*victim*/, uint8 /*xpSource*/) override
     {
         // early return
-        if (sPlayerbotAIConfig.randomBotXPRate == 1.0 || !player)
+        if (sPlayerbotAIConfig.RandomBotXPRate == 1.0 || !player)
             return;
 
         // no XP multiplier, when player is no bot.
@@ -380,7 +389,7 @@ public:
         }
 
         // otherwise apply bot XP multiplier.
-        amount = static_cast<uint32>(std::round(static_cast<float>(amount) * sPlayerbotAIConfig.randomBotXPRate));
+        amount = static_cast<uint32>(std::round(static_cast<float>(amount) * sPlayerbotAIConfig.RandomBotXPRate));
     }
 };
 
@@ -559,8 +568,11 @@ public:
     void OnBattlegroundStart(Battleground* bg) override
     {
         BGStrategyData data;
+        BattlegroundTypeId bgType = bg->GetBgTypeID();
+        if (bgType == BATTLEGROUND_RB)  // a random-queue game: the rolled map
+            bgType = bg->GetBgTypeID(true);
 
-        switch (bg->GetBgTypeID())
+        switch (bgType)
         {
             case BATTLEGROUND_WS:
                 data.allianceStrategy = urand(0, WS_STRATEGY_MAX - 1);
@@ -582,10 +594,13 @@ public:
                 break;
         }
 
-        bgStrategies[bg->GetInstanceID()] = data;
+        BGTactics::SetBotStrategies(bg->GetInstanceID(), data);
     }
 
-    void OnBattlegroundEnd(Battleground* bg, TeamId /*winnerTeam*/) override { bgStrategies.erase(bg->GetInstanceID()); }
+    void OnBattlegroundEnd(Battleground* bg, TeamId /*winnerTeam*/) override
+    {
+        BGTactics::ClearBotStrategies(bg->GetInstanceID());
+    }
 };
 
 // Workaround for missing InitEnabledHooksIfNeeded for new BattlefieldScript in ScriptMgr

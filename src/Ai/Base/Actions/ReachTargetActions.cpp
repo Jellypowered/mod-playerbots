@@ -5,6 +5,8 @@
  */
 
 #include "ReachTargetActions.h"
+
+#include "Battleground.h"
 #include "Event.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
@@ -43,7 +45,7 @@ bool CastReachTargetSpellAction::isUseful()
     }
 
     return ServerFacade::instance().IsDistanceGreaterThan(AI_VALUE2(float, "distance", "current target"),
-                                                (distance + sPlayerbotAIConfig.contactDistance));
+                                                (distance + sPlayerbotAIConfig.ContactDistance));
 }
 
 ReachSpellAction::ReachSpellAction(PlayerbotAI* botAI)
@@ -61,6 +63,14 @@ std::string const ReachPartyMemberToHealAction::GetTargetName() { return "party 
 ReachPartyMemberToResurrectAction::ReachPartyMemberToResurrectAction(PlayerbotAI* botAI)
     : ReachTargetAction(botAI, "reach party member to resurrect", botAI->GetRange("spell"))
 {
+}
+
+bool ReachPartyMemberToResurrectAction::Execute(Event event)
+{
+    Battleground* bg = bot->GetBattleground();
+    if (bg && bg->GetBgTypeID(true) == BATTLEGROUND_WS)
+        return false;
+    return ReachTargetAction::Execute(event);
 }
 
 std::string const ReachPartyMemberToResurrectAction::GetTargetName() { return "party member to resurrect"; }

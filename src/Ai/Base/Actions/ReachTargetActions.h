@@ -45,7 +45,7 @@ protected:
 class ReachMeleeAction : public ReachTargetAction
 {
 public:
-    ReachMeleeAction(PlayerbotAI* botAI) : ReachTargetAction(botAI, "reach melee", sPlayerbotAIConfig.meleeDistance) {}
+    ReachMeleeAction(PlayerbotAI* botAI) : ReachTargetAction(botAI, "reach melee", sPlayerbotAIConfig.MeleeDistance) {}
 };
 
 class ReachSpellAction : public ReachTargetAction
@@ -67,6 +67,7 @@ class ReachPartyMemberToResurrectAction : public ReachTargetAction
 public:
     ReachPartyMemberToResurrectAction(PlayerbotAI* botAI);
 
+    bool Execute(Event event) override;
     std::string const GetTargetName() override;
 };
 
