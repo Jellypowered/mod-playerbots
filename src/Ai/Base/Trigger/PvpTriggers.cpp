@@ -109,7 +109,7 @@ bool BgInviteActiveTrigger::IsActive()
         {
             if (ginfo.IsInvitedToBGInstanceGUID && ginfo.RemoveInviteTime)
             {
-                LOG_INFO("playerbots", "Bot {} <{}> ({} {}) : Invited to BG but not in BG",
+                LOG_INFO("pbbg", "Bot {} <{}> ({} {}) : Invited to BG but not in BG",
                          bot->GetGUID().ToString().c_str(), bot->GetName(), bot->GetLevel(),
                          bot->GetTeamId() == TEAM_ALLIANCE ? "A" : "H");
                 return true;

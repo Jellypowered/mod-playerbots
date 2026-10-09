@@ -2692,6 +2692,14 @@ Playerbots.BroadcastChanceGuildManagement = 30000
 # Example: Playerbots.AllowedLogFiles = travelNodes.csv,travelPaths.csv,TravelNodeStore.h,bot_movement.csv,bot_location.csv
 Playerbots.AllowedLogFiles = ""
 
+# Playerbots Battleground Logging and Appender
+# This reduces the console spam from BG's
+# Example: Appender.PBBG=2,4,0,PBBG.log,w
+#          Logger.pbbg=4,Console PBBG
+# Remove Console from the logger if you don't need to see the console spam. 
+Appender.PBBG=2,4,0,PBBG.log,w
+Logger.pbbg=4,PBBG
+
 #
 #
 ####################################################################################################
