@@ -330,6 +330,15 @@ Playerbots.LootRollRecipe = 0
 # Default: 0 (disabled)
 Playerbots.LootRollDisenchant = 0
 
+# Bots will be allowed to roll Disenchant if allowed and meet
+# the proper conditions.
+# Default: 0 (disabled)
+Playerbots.Disenchant = 0
+Playerbots.Disenchant.Uncommon = 0
+Playerbots.Disenchant.Rare = 0
+Playerbots.Disenchant.Epic = 0
+Playerbots.Disenchant.Legendary = 0
+
 # A list of GameObject GUIDs that bots will not interact with.
 # List of default GUIDs:
 # QuestItems:
@@ -1428,7 +1437,7 @@ Playerbots.RestrictedHealerDPSMaps = "33,34,36,43,47,48,70,90,109,129,209,229,23
 # Default: 1 (enabled)
 Playerbots.EnableNewRpgStrategy = 1
 
-# Radius (yards) of the new RPG strategy's NPC and gameobject scans. Cost grows with the square of the radius. 
+# Radius (yards) of the new RPG strategy's NPC and gameobject scans. Cost grows with the square of the radius.
 # Default: 150.0
 Playerbots.RpgTargetSearchDistance = 150.0
 

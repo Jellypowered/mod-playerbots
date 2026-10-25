@@ -40,6 +40,15 @@ std::string MetricName(PerformanceMetric metric)
             return "?";
     }
 }
+
+std::string PmonJsonFilename(bool perTick, std::time_t now)
+{
+    char stamp[32] = "";
+    if (std::tm const* utc = std::gmtime(&now))
+        std::strftime(stamp, sizeof(stamp), "%Y%m%dT%H%M%SZ", utc);
+
+    return (perTick ? "pmon_tick." : "pmon_total.") + std::string(stamp) + ".json";
+}
 }  // namespace
 
 namespace
@@ -472,7 +481,7 @@ void PerfMonitor::DumpJson(bool perTick)
     out << (firstMetric ? "" : "\n") << "  ]\n";
     out << "}\n";
 
-    std::string const path = LogsJsonPath(perTick ? "pmon_tick.json" : "pmon_total.json");
+    std::string const path = LogsJsonPath(PmonJsonFilename(perTick, now));
 
     WriteJsonFile(path, out.str(), "Performance monitor");
 }

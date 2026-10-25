@@ -731,6 +731,11 @@ bool PlayerbotAIConfig::Initialize()
     LootNeedRollLevel = sConfigMgr->GetOption<int32>("Playerbots.LootNeedRollLevel", 1);
     LootRollRecipe = sConfigMgr->GetOption<bool>("Playerbots.LootRollRecipe", false);
     LootRollDisenchant = sConfigMgr->GetOption<bool>("Playerbots.LootRollDisenchant", false);
+    AllowDisenchant = sConfigMgr->GetOption<bool>("Playerbots.Disenchant", false);
+    DeGreens = sConfigMgr->GetOption<bool>("Playerbots.Disenchant.Uncommon", false);
+    DeBlues = sConfigMgr->GetOption<bool>("Playerbots.Disenchant.Rare", false);
+    DePurples = sConfigMgr->GetOption<bool>("Playerbots.Disenchant.Epic", false);
+    DeOranges = sConfigMgr->GetOption<bool>("Playerbots.Disenchant.Legendary", false);
     LootGreedRollLevel = sConfigMgr->GetOption<bool>("Playerbots.LootGreedRollLevel", false);
     AutoPickReward = sConfigMgr->GetOption<std::string>("Playerbots.AutoPickReward", "yes");
     AutoEquipUpgradeLoot = sConfigMgr->GetOption<bool>("Playerbots.AutoEquipUpgradeLoot", true);
