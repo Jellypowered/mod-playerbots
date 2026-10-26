@@ -32,6 +32,7 @@ nbproject/
 .sync.ffs_db
 *.kate-swp
 reset.sh
+/.pi/rpac
 
 #
 # Eclipse
